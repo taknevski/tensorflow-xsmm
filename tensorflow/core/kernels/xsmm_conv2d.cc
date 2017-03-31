@@ -24,7 +24,7 @@ void dummy_xsmm_conv2d_ensure_file_is_not_empty(void);
 #define EIGEN_USE_THREADS
 
 #include "tensorflow/core/kernels/xsmm_conv2d.h"
-
+#include <mutex>
 #include <stdlib.h>
 #include <cstring>
 #if 0
@@ -109,7 +109,6 @@ LIBXSMM_INLINE void copy_RSCK_to_custom(const float* rsck, float *kcrs, int R, i
   }
 }
 
- 
 
 class libxsmm_dnn_conv_desc_wrap{
   public:
@@ -128,34 +127,44 @@ class libxsmm_dnn_conv_desc_wrap{
               d.u == w.d.u &&
               d.v == w.d.v &&
               d.pad_h == w.d.pad_h &&
-              d.pad_w == w.d.pad_w
-            );
+              d.pad_w == w.d.pad_w &&
+              d.pad_h_in == w.d.pad_h_in &&
+              d.pad_w_in == w.d.pad_w_in &&
+              d.pad_h_out == w.d.pad_h_out &&
+              d.pad_w_out == w.d.pad_w_out &&
+              d.threads == w.d.threads &&
+              d.algo == d.algo &&
+              d.buffer_format == w.d.buffer_format &&
+              d.filter_format == w.d.filter_format &&
+              d.fuse_ops == w.d.fuse_ops &&
+              d.options == w.d.options &&
+              d.datatype == w.d.datatype);
     }
 };
- 
- 
+
+
 struct HashFunction{
   std::size_t operator()(const libxsmm_dnn_conv_desc_wrap & w) const{
-   
-    
-
-
+ 
+ 
+ 
+ 
     //unsigned char ptr[sizeof(&w.d)];
-
-    
+ 
+ 
     //memcpy(ptr, (unsigned char *)&w.d, sizeof(&w.d))
-                                       
-
+ 
+ 
     //
-    /*
+ 
     std::ostringstream N,C,H,W,K,R,S,u,v,padh,padw;
  
     N << w.d.N; C << w.d.C;
     H << w.d.H; W << w.d.W;
     K << w.d.K; R << w.d.R;
     S << w.d.S; u << w.d.u;
-    v << w.d.v; padh << w.d.pad_h_in;
-    padw << w.d.pad_w_in;
+    v << w.d.v; padh << w.d.pad_h;
+    padw << w.d.pad_w;
  
  
     std::string out_ =   N.str() + C.str()\
@@ -164,16 +173,17 @@ struct HashFunction{
                        + S.str() + u.str()\
                        + v.str() + padh.str()\
                        + padw.str();
-    //
-    //
-    */
-    return ( std::hash<unsigned long long>()((unsigned long long)&(w.d)));
+    return ( std::hash<std::string>()(out_));
+    //return ( std::hash<unsigned long long>()((unsigned long long)&(w.d)));
   }
 };
+ 
  
 class handles{
   public:
     libxsmm_dnn_layer* find( const libxsmm_dnn_conv_desc_wrap &w) {
+ 
+      std::unique_lock<std::mutex> lock(mutex_);
       std::unordered_map<libxsmm_dnn_conv_desc_wrap , libxsmm_dnn_layer*, HashFunction>::iterator i = libxsmm_handles.find(w);
       if (i == libxsmm_handles.end()){
         libxsmm_dnn_err_t status;
@@ -192,10 +202,11 @@ class handles{
                     "Destroy handle");
     }
   private:
- 
-    std::unordered_map<libxsmm_dnn_conv_desc_wrap , libxsmm_dnn_layer*, HashFunction> libxsmm_handles;
+     std::mutex mutex_;
+     std::unordered_map<libxsmm_dnn_conv_desc_wrap , libxsmm_dnn_layer*, HashFunction> libxsmm_handles;
  
 };
+
 
 static handles libxsmm_handles;
 
@@ -226,8 +237,8 @@ static bool CallLibxsmmConvGeneric(OpKernelContext* ctx,
   
   status = libxsmm_dnn_get_codegen_success(libxsmm_handle, kind);
   if (status == LIBXSMM_DNN_WARN_FALLBACK) {
-    chk_libxsmm_err(libxsmm_dnn_destroy_conv_layer(libxsmm_handle),
-                    "Destroy handle");
+    //chk_libxsmm_err(libxsmm_dnn_destroy_conv_layer(libxsmm_handle),
+    //                "Destroy handle");
     return false;  // Use non-libxsmm code
   }
   chk_libxsmm_err(status, "Check codegen status");
