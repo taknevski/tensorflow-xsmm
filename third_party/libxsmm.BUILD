@@ -117,24 +117,28 @@ cc_library(
 
 py_library(
     name = "libxsmm_scripts",
+    srcs_version = "PY2AND3",
     srcs = glob(["scripts/*.py"]),
     data = ["version.txt"],
 )
 
 py_binary(
     name = "libxsmm_interface",
+    srcs_version = "PY2AND3",
     srcs = ["scripts/libxsmm_interface.py"],
     deps = [":libxsmm_scripts"],
 )
 
 py_binary(
     name = "libxsmm_config",
+    srcs_version = "PY2AND3",
     srcs = ["scripts/libxsmm_config.py"],
     deps = [":libxsmm_scripts"],
 )
 
 py_binary(
     name = "libxsmm_dispatch",
+    srcs_version = "PY2AND3",
     srcs = ["scripts/libxsmm_dispatch.py"],
     deps = [":libxsmm_scripts"],
 )
